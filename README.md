@@ -1,7 +1,5 @@
 # Ekumetrics Agent — instaladores
 
-Repositorio **publico solo de binarios**. El codigo fuente vive en el repo privado `ekumetrics-agent`.
-
 Ultima version: [releases/latest](https://github.com/japerezsaavedra/ekumetrics-agent-releases/releases/latest)
 
 | Distro | Paquete |
