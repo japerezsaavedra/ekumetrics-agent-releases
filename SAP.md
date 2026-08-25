@@ -2,9 +2,7 @@
 
 El Ekumetrics Agent, en modo **Sensor**, observa el tráfico hacia componentes SAP **sin acceso administrativo** al sistema. No entra al SID, no usa usuario RFC, no consulta Solution Manager / Cloud ALM y **no descifra** SNC, TLS ni HTTPS.
 
-Esta guía cubre arquitectura, colocación, qué se ve, catálogo de métricas, YAML, POC solo-agente y límites. El resumen operativo de series y campos también está en [USO.md](USO.md).
-
-Nombre comercial honesto: **observabilidad del canal SAP** / *SAP Network Experience*. No es “monitoreo S/4” ni APM ABAP.
+Esta guía cubre arquitectura, colocación, qué se ve, catálogo de métricas, YAML y límites. El resumen operativo de series y campos también está en [USO.md](USO.md).
 
 ---
 
@@ -32,7 +30,7 @@ Por eso una sonda en la red del cliente ve el **borde remoto** (experiencia de r
 
 **Private Edition / RISE:** puede haber SAP GUI/DIAG, RFC y conectividad privada. El tráfico interno HANA sigue dentro del landscape administrado.
 
-El código **no distingue edición**. La edición se decide en el descubrimiento (días 1–2 de la POC).
+La edición (Public o Private / RISE) la define el landscape, no el agente.
 
 ---
 
@@ -49,7 +47,7 @@ Un **solo binario** (`ekumetrics-agent`), un YAML (`/etc/ekumetrics-agent/agent.
 
 El canal SAP **no** va en el YAML de un agente de sede. Se instala un sensor aparte, junto al SPAN/TAP.
 
-### POC solo-agente (sin plataforma)
+### Lectura local (sin plataforma)
 
 ```
 Usuarios / Fiori / GUI / RFC              Landscape SAP
@@ -72,14 +70,12 @@ Usuarios / Fiori / GUI / RFC              Landscape SAP
                  │  journal (JSON/sesión)  │
                  └─────────────────────────┘
                               │
-                    Grafana del cliente
+                    Grafana u otro scraper
                     (scrape a :9090)
                     o curl / journalctl
 ```
 
-`export.otlp` **vacío**: recolecta y no reenvía. No hace falta tenant, portal ni salida a Gradotech.
-
-Si más adelante hay plataforma, el mismo proceso hace **push OTLP** al collector. En la POC descrita aquí no aplica.
+`export.otlp` **vacío**: recolecta y no reenvía. Los datos se leen en `:9090`. Si configura un destino, el mismo proceso hace push OTLP.
 
 El agente **no pinta paneles**. Expone Prometheus en `127.0.0.1:9090`. Sin alguien que scrapee, Grafana queda vacío.
 
@@ -105,7 +101,7 @@ Por defecto **no abre payload** DIAG/RFC. Eso exige `decode.authorized`.
 | ¿Agente dentro del SID? | No |
 | ¿Cómo entra el dato? | El switch **copia** el tráfico al sensor |
 | ¿Cada cuánto “pregunta”? | No pregunta. Las sesiones se cierran al FIN/RST, a 30 s si el SYN no responde, o a 5 min de idle |
-| ¿Salida en la POC? | Lectura local de `:9090` (push OTLP solo si hay destino) |
+| ¿Dónde se leen los datos? | `:9090` en el sensor. Push OTLP solo si hay destino |
 
 Sin mirror **bidireccional** no hay datos útiles. El fallo típico es un SPAN de un solo sentido (bytes sent o received en cero, RTT ausente).
 
@@ -121,7 +117,7 @@ Si el espejo está en el lado WAN de una VPN, se verá ESP o UDP 4500 y las IP d
 - **Fuera** del camino de datos: no es proxy ni bridge.
 - **Dos NIC**: captura (sin dirección IP, recomendado) y gestión.
 
-Un TAP es preferible en producción. SPAN sirve para la POC; puede descartar si el puerto de destino se satura. El agente mide `ekms_sap_capture_drops_total` (descartes del socket, **toda** la NIC, no solo SAP).
+Un TAP es preferible. SPAN es válido; puede descartar si el puerto de destino se satura. El agente mide `ekms_sap_capture_drops_total` (descartes del socket, **toda** la NIC, no solo SAP).
 
 La VM es Linux (Debian/Ubuntu/RHEL). No se instala software en los application servers.
 
@@ -149,11 +145,11 @@ Puertos Java `50000`/`50001` **no** están en el filtro. HANA interno RISE **no*
 
 ---
 
-## 6. Qué se observa (tres capas)
+## 6. Qué se observa
 
-### Capa 1 — Canal (POC, por defecto)
+### Capa 1 — Canal (por defecto)
 
-Metadatos de sesión TCP. Sin payload. Suficiente para demostrar valor.
+Metadatos de sesión TCP. Sin payload.
 
 ### Capa 2 — TLS visible (automática, sin decode)
 
@@ -163,7 +159,7 @@ Si el ClientHello o ServerHello van en claro (el caso típico de Fiori/HTTPS), s
 
 `decode.authorized: true`. No descifra. En claro puede clasificar NI, SNC, Router, HTTP. Los parsers DIAG, RFC, HANA, Message Server y Enqueue **nacen apagados**. Sigue sin haber usuario, tcode ni SQL.
 
-### Capa 4 — Trabajo (fuera de la POC)
+### Capa 4 — Trabajo (opcional)
 
 `sap.work` + JSONL (STAD/audit). Usuario **hasheado**, tcode. No sale del cable.
 
@@ -247,11 +243,11 @@ Los hosts se siembran con `inventory` y se **aprenden** al ver un puerto SAP. Si
 | `ekms_probe_loss_ratio` | 1 si falló |
 | `ekms_probe_tls_not_after_timestamp_seconds` | Fin del certificado (`https`) |
 
-Son pruebas **autorizadas** al FQDN/IP que declare el cliente. No descifran el tráfico de usuarios. `https` usa `InsecureSkipVerify` solo para medir disponibilidad, no para validar confianza de negocio.
+Son pruebas **autorizadas** al FQDN/IP que usted declare. No descifran el tráfico de usuarios. `https` usa `InsecureSkipVerify` solo para medir disponibilidad, no para validar confianza de negocio.
 
 ### Decode (`ekms_sap_protocol_*`)
 
-Solo con `decode.authorized`. Conteos de mensajes, bytes, errores, malformadas, cifradas. No forman parte de la POC mínima.
+Solo con `decode.authorized`. Conteos de mensajes, bytes, errores, malformadas, cifradas.
 
 ---
 
@@ -295,11 +291,11 @@ Una línea por sesión (stdout / journal). Campos:
 ## 10. Seguridad y privacidad
 
 - Filtro a puertos SAP y a IPs aprendidas/inventario. No hay BPF en kernel: se captura la NIC y se filtra en user space.
-- Sin PCAP persistente por defecto. `pcapDump` en el YAML **aún no escribe** fichero (solo deja constancia en log si se activa).
+- Sin PCAP persistente por defecto.
 - Sin `decode.authorized` no se abre payload DIAG/RFC.
 - ClientHello se lee en memoria para SNI/versión. No se guarda el payload.
 - Nada de MITM ni uso de claves TLS/SNC.
-- Pruebas `https`/`dns` solo si el cliente las declara.
+- Pruebas `https`/`dns` solo si las declara en el YAML.
 - Un SAP GUI **sin SNC** puede llevar credenciales en claro: por eso el decode nace apagado.
 - Retención: el journal del sistema; las métricas agregadas viven en quien scrapee `:9090`.
 
@@ -310,10 +306,10 @@ Una línea por sesión (stdout / journal). Campos:
 ```yaml
 agent:
   mode: sensor
-  environment: poc
-  site: poc-cliente
+  environment: production
+  site: planta-norte
   agentId: sap-sensor-01
-  # export.otlp vacío en la POC
+  # deje export.otlp vacío para leer solo :9090
 
 modules:
   sap:
@@ -356,47 +352,12 @@ curl -s http://127.0.0.1:9090/metrics | grep ekms_sap
 journalctl -u ekumetrics-agent -e
 ```
 
-Zeek (`zeek.enabled`) es un sidecar opcional. No alimenta las series `ekms_sap_*`. No hace falta para la POC.
+Zeek (`zeek.enabled`) es un sidecar opcional. No alimenta las series `ekms_sap_*`.
+
 
 ---
 
-## 12. POC recomendada (solo agente)
-
-| Fase | Días | Resultado |
-|------|------|-----------|
-| Descubrimiento | 1–2 | Edición SAP, GUI/Fiori/RFC/VDI, VPN, endpoints, puertos |
-| Captura controlada | 3 | Tráfico de sesiones conocidas; validar que no es solo ESP/ICA |
-| Validación | 4 | Simetría, cifrado, SNC, pérdida de captura |
-| Instalación | 5–6 | Agente, `setcap`, scrape Grafana a `:9090` |
-| Línea base | 7–11 | Comportamiento por sede, sistema y horario |
-| Tableros | 10–13 | Canal vivo, conversaciones (journal), calidad, TLS |
-| Validación conjunta | 14 | Correlación con quejas de usuarios |
-| Informe | 15 | Alcance real, sizing, sí/no de producción |
-
-### Día 3 (decisivo)
-
-| Lo que aparece | Qué hacer |
-|----------------|-----------|
-| Solo ESP / UDP 4500 | Mover el espejo al lado interno de la VPN |
-| Solo Citrix/RDP | Capturar en la red de los servidores VDI |
-| Solo HTTPS | El producto sigue siendo útil como experiencia de red/TLS |
-| DIAG/RFC en claro | Se puede evaluar decode **sin** convertirlo en promesa |
-
-### Criterios de éxito (firmables)
-
-- Las sesiones de prueba a `32NN` / `33NN` / `443` aparecen en `:9090` y en el journal.
-- Clasificación por puerto (no semántica DIAG/RFC).
-- Bidireccionalidad: bytes sent y received > 0.
-- Cero payload persistido.
-- Se puede responder: qué sede (YAML), qué IP (journal), qué canal, desde cuándo, qué síntoma TCP.
-
-### Criterios que no se firman
-
-Sustituir Cloud ALM / HANA Cockpit / SolMan. Usuario SAP o tcode desde el cable. Causa interna de HANA. 95 % de “clasificación de protocolo” estilo dissector.
-
----
-
-## 13. Información que hace falta del cliente
+## 12. Antes de instalar el sensor
 
 1. Edición: Public o Private / RISE.
 2. Uso de SAP GUI, Fiori, WebGUI, RFC, OData, VDI o Citrix.
@@ -408,13 +369,13 @@ Sustituir Cloud ALM / HANA Cockpit / SolMan. Usuario SAP o tcode desde el cable.
 8. Política de privacidad y retención.
 9. Autorización de captura de **metadatos** (sin payload).
 10. Autorización de sondas sintéticas (TCP/HTTPS/DNS), si se usan.
-11. DHCP/NAC/VPN/CMDB solo si quieren correlacionar IP con persona.
+11. DHCP/NAC/VPN/CMDB solo si necesita correlacionar IP con persona.
 
 No hace falta usuario SAP, RFC ni software en el SID.
 
 ---
 
-## 14. Tableros sugeridos (Grafana sobre `:9090`)
+## 13. Tableros sugeridos (Grafana sobre `:9090`)
 
 1. **Canal vivo** — intentos, establecimientos, `sessions_active`.
 2. **Mix de componentes** — sesiones por `protocol`.
@@ -424,28 +385,15 @@ No hace falta usuario SAP, RFC ni software en el SID.
 6. **Salud de la sonda** — `capture_packets` vs `capture_drops`.
 7. **Fuera de catálogo** — `unexpected_port_packets`, `new_endpoints`.
 
----
-
-## 15. Código de referencia
-
-| Pieza | Ruta |
-|-------|------|
-| Puertos | `pkg/ingest/ports.go` |
-| Filtro de hosts / puertos inesperados | `pkg/ingest/gate.go` |
-| Handshake TLS | `pkg/ingest/tlshello.go` |
-| Sesiones y métricas | `pkg/sap/session/` |
-| Captura Linux y drops | `pkg/ingest/live_linux.go`, `packetstats_linux.go` |
-| Arranque del módulo | `pkg/modules/sap/module.go` |
-| Sondas | `pkg/modules/probes/` |
 
 ---
 
-## 16. Lo que este módulo no hace
+## 14. Lo que este módulo no hace
 
-- No sustituye SAP Cloud ALM, HANA Cockpit ni Solution Manager; los complementaría solo con una integración oficial futura.
+- No sustituye SAP Cloud ALM, HANA Cockpit ni Solution Manager.
 - No reconstruye una transacción a partir de tráfico cifrado.
 - No pone IP de cliente como label de Prometheus.
-- No implementa aún escritura de `pcapDump` (el interruptor solo registra en log).
+- No escribe capturas PCAP a disco.
 - Zeek opcional no exporta `capture_loss` a Prometheus; use `ekms_sap_capture_drops_total`.
 - J2EE 50000/50001 fuera de filtro.
 - Dup ACK / OOO / retransmisión son heurísticas de seq/ack, no un dissector TShark completo.
