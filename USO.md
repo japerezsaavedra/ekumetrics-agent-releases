@@ -10,7 +10,7 @@ El agente recolecta aunque no haya plataforma detrás. Con destino, empuja las s
 
 | Dirección | Contenido | Cuándo existe |
 |-----------|-----------|---------------|
-| `http://127.0.0.1:9090/healthz` | Salud del proceso | Licencia o prueba vigente |
+| `http://127.0.0.1:9090/healthz` | Salud del proceso | Si el proceso responde |
 | `http://127.0.0.1:9090/metrics` | Identidad del agente y canal SAP | Siempre |
 | `http://127.0.0.1:9090/inventory` | Activos conocidos y sugeridos | Siempre (lista vacía si no hay semillas ni talkers) |
 | `http://127.0.0.1:9090/flows` | Metadatos NetFlow v5 (top talkers, últimos flujos) | `ingest.netflow` activo |
@@ -44,80 +44,6 @@ El agente recolecta aunque no haya plataforma detrás. Con destino, empuja las s
 
 El agente **no** instrumenta aplicaciones, **no** barre la red (el descubrimiento activo está apagado), **no** descifra SNC/TLS/HTTPS y **no** sustituye SAP Solution Manager ni una CMDB.
 
----
-
-## Licencia
-
-Producto comercial de Gradotech. El texto legal está en `/usr/share/doc/ekumetrics-agent/LICENSE`.
-
-### Qué ocurre en el servidor
-
-| Situación | Recolección | `/healthz` | `ekms_agent_license_valid` |
-|-----------|-------------|------------|-----------------------------------|
-| Primeros 15 días, sin fichero de licencia | Sí | `ok` | `1` |
-| Prueba vencida | No | no es `ok` | `0` |
-| Licencia Gradotech vigente | Sí | `ok` | `1` |
-| Licencia caducada o alterada | No | no es `ok` | `0` |
-
-El proceso **no se apaga**. systemd sigue en verde. Dejan de arrancar host, logs, SNMP, trazas y SAP. Las series de identidad en `:9090` siguen saliendo.
-
-La prueba empieza el día del **primer arranque** en ese host. El último día de los 15 cuenta. El inicio queda en `/var/cache/ekumetrics-agent/trial-started` (o en `EKUMETRICS_CACHE_DIR` si el servicio lo define).
-
-### Licencia de uso (después de la prueba)
-
-Gradotech entrega un fichero firmado. En el servidor:
-
-```bash
-sudo install -m 0640 -o root -g ekumetrics license /etc/ekumetrics-agent/license
-sudo systemctl restart ekumetrics-agent
-```
-
-No edite ese fichero. Si cambia la fecha o el cliente, la firma no cuadra y no vale.
-
-Ruta alternativa en el YAML:
-
-```yaml
-agent:
-  license: /etc/ekumetrics-agent/license
-```
-
-Vacío: usa `/etc/ekumetrics-agent/license` si existe; si no, la prueba de 15 días.
-
-### Cómo comprobarla
-
-```bash
-curl -s http://127.0.0.1:9090/healthz
-curl -s http://127.0.0.1:9090/metrics | grep ekms_agent_license
-journalctl -u ekumetrics-agent -e | grep license
-```
-
-En el arranque verá `prueba de 15 dias: valida hasta AAAA-MM-DD` o el cliente y la fecha de la licencia. Si venció: `periodo de prueba de 15 dias finalizado` o `licencia caducada`.
-
-| Serie en `:9090` | Significado |
-|------------------|-------------|
-| `ekms_agent_license_valid` | `1` vigente, `0` no |
-| `ekms_agent_license_until_timestamp_seconds` | Fin de la prueba o de la licencia (`kind`: `trial` o `license`) |
-
-### Emitir una licencia (Gradotech)
-
-La clave privada no viaja en el paquete ni en git. Está en `keys/gradotech-license.ed25519` en el entorno de emisión.
-
-```bash
-go run ./cmd/license emit \
-  -key keys/gradotech-license.ed25519 \
-  -cliente Biosystem \
-  -sitio planta-norte \
-  -hasta 2027-02-18 \
-  -out license
-```
-
-`-hasta` es el último día de uso (AAAA-MM-DD). Copie `license` al servidor del cliente como `/etc/ekumetrics-agent/license`.
-
-Para generar un par de claves nuevo (solo si se pierde la privada; hay que actualizar `pkg/license/pubkey.go` y reconstruir el agente):
-
-```bash
-go run ./cmd/license genkey -out keys/gradotech-license.ed25519
-```
 
 ## Configuración
 
@@ -157,7 +83,6 @@ agent:
 | `site` / `tenantId` / `agentId` | Sede, tenant y agente hacia Ekumetrics Platform |
 | `mode` | `site` (Servidor), `central` (NOC), `sensor` (SPAN) o `endpoint`. Ver [ROL.md](ROL.md) |
 | `metricsAddr` | Identidad, `/healthz`, `/inventory`, `/flows` y SAP |
-| `license` | Ruta de la licencia firmada. Vacío: `/etc/ekumetrics-agent/license` si existe; si no, prueba de 15 días |
 
 En `:9090/metrics` verá:
 
@@ -166,8 +91,6 @@ En `:9090/metrics` verá:
 | `ekms_agent_info` | Agente vivo (`environment`, `site`, `version`) |
 | `ekms_agent_identity` | `tenant_id`, `site_id`, `agent_id`, `mode` |
 | `ekms_agent_module_enabled` | `1` si ese módulo está encendido |
-| `ekms_agent_license_valid` | `1` si la prueba o la licencia está vigente |
-| `ekms_agent_license_until_timestamp_seconds` | Fin de validez |
 
 ### Destino (plataforma)
 
@@ -627,9 +550,6 @@ sudo ./install.sh
 | `/usr/share/doc/ekumetrics-agent/USO.md` | Guía de uso (esta) |
 | `/usr/share/doc/ekumetrics-agent/ROL.md` | Roles site / central / sensor |
 | `/usr/share/doc/ekumetrics-agent/SAP.md` | Canal SAP y POC |
-| `/usr/share/doc/ekumetrics-agent/LICENSE` | Licencia de producto Gradotech |
-| `/etc/ekumetrics-agent/license` | Licencia de uso (fecha de fin). Si falta, prueba 15 días |
-| `/var/cache/ekumetrics-agent/trial-started` | Día en que empezó la prueba |
 
 ```bash
 sudo systemctl status ekumetrics-agent
@@ -643,13 +563,12 @@ Parada: `sudo systemctl stop ekumetrics-agent`.
 
 | Pregunta | Cómo |
 |----------|------|
-| ¿El proceso vive? | `curl -s http://127.0.0.1:9090/healthz` responde `ok` (si la licencia o la prueba vale) |
+| ¿El proceso vive? | `curl -s http://127.0.0.1:9090/healthz` responde `ok` |
 | ¿Qué módulos están on? | `ekms_agent_module_enabled` en `:9090/metrics` |
 | ¿Hay CPU, disco, SNMP, apps? | `:8889/metrics` |
 | ¿Hay sesiones SAP? | `ekms_sap_sessions_total` o `ekms_sap_tcp_attempts_total` en `:9090/metrics` |
 | ¿Hay activos sugeridos? | `http://127.0.0.1:9090/inventory` |
 | ¿Hay flujos? | `http://127.0.0.1:9090/flows` (si NetFlow está on) |
-| ¿La licencia o la prueba vale? | `ekms_agent_license_valid` y `..._until_timestamp_seconds` en `:9090` |
 | ¿Llega a la plataforma? | `export.otlp.endpoint` informado; si está vacío, scrapee el agente |
 
 ## Operación
@@ -663,7 +582,6 @@ Parada: `sudo systemctl stop ekumetrics-agent`.
 
 | Lo que ve | Causa habitual |
 |-----------|----------------|
-| `/healthz` no es `ok` y no hay series nuevas | Prueba de 15 días o licencia caducada |
 | Grafana vacío | No hay destino y nadie scrapea `:8889` / `:9090` |
 | Host sin series | El módulo está en `false` |
 | Procesos o SNMP vacíos | `names`, `jobs` o `snmp.devices` vacíos |
