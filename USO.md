@@ -63,7 +63,7 @@ El fichero tiene tres zonas. No declare el mismo equipo en dos sitios.
 | Este host y sede | `modules` | ¿Qué recojo en esta máquina y qué escucho? |
 | Equipos y apps | `snmp`, `databases`, `queues`, `icewarp` | ¿Qué hay alrededor? |
 
-Los equipos SNMP se declaran en `snmp.devices`. `modules.metrics.snmp` sigue leyéndose en YAML antiguos; el de fábrica ya no lo incluye. El canal SAP (`mode: sensor`) está en [SAP.md](SAP.md), no en el YAML de sede.
+Los equipos SNMP se declaran en `snmp.devices`. El canal SAP (`mode: sensor`) está en [SAP.md](SAP.md), no en el YAML de sede.
 
 ### Identidad
 
@@ -108,7 +108,7 @@ export:
     compress: false
 ```
 
-Un solo destino. Vacío: recolecta y no reenvía. `insecure: true` es para laboratorio. En Platform use `insecure: false` y certificados (TLS 1.2, mTLS si hay `certFile` y `keyFile`).
+Un solo destino. Vacío: recolecta y no reenvía. `insecure: true` solo si el destino no usa TLS. En producción use `insecure: false` y certificados (TLS 1.2, mTLS si hay `certFile` y `keyFile`).
 
 Los eventos de inventario, flujos y traps se guardan en disco (store-and-forward) y se reenvían a `/v1/ekms/events` conservando el timestamp original. Si no hay destino, la cola sigue persistiendo. Si el enlace cae, reintenta con backoff y prioriza `warning`/`error`.
 
@@ -549,7 +549,7 @@ sudo ./install.sh
 | `/usr/share/man/man8/ekumetrics-agent.8` | Manual (`man ekumetrics-agent`) |
 | `/usr/share/doc/ekumetrics-agent/USO.md` | Guía de uso (esta) |
 | `/usr/share/doc/ekumetrics-agent/ROL.md` | Roles site / central / sensor |
-| `/usr/share/doc/ekumetrics-agent/SAP.md` | Canal SAP y POC |
+| `/usr/share/doc/ekumetrics-agent/SAP.md` | Canal SAP |
 
 ```bash
 sudo systemctl status ekumetrics-agent
