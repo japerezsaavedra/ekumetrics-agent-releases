@@ -1,6 +1,16 @@
 # Rol del Ekumetrics Agent
 
-El agente recolecta en el borde. Cada instalación elige un modo. La identidad (`tenant_id`, `site_id`, `agent_id`) la define el despliegue.
+El agente recolecta en el borde. Cada instalación elige un modo.
+
+La identidad la define el despliegue:
+
+| Término | YAML / señal | Qué es |
+|---------|--------------|--------|
+| Tenant | `tenantId` → `tenant_id` | El cliente (la organización) |
+| Sitio | `site` → `site_id` | Una planta, oficina o zona de ese tenant |
+| Agente | `agentId` → `agent_id` | El proceso que reporta |
+
+Un tenant tiene varios sitios. Un sitio no se comparte entre tenants. El modo `site` en el YAML es el tipo **Servidor**, no el sitio.
 
 ## Modos
 
