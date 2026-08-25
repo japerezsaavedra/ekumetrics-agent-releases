@@ -14,6 +14,4 @@ Ultima version: [releases/latest](https://github.com/japerezsaavedra/ekumetrics-
 - Roles (site / central / sensor): [ROL.md](ROL.md)
 - Canal SAP y POC: [SAP.md](SAP.md)
 
-Tras instalar, las mismas guias quedan en `/usr/share/doc/ekumetrics-agent/`. En el `.tar.gz` van junto al binario.
-
-Licencia de producto Gradotech. Periodo de prueba de 15 dias si no hay contrato.
+Tras instalar, las mismas guias quedan en `/usr/share/doc/ekumetrics-agent/`.
