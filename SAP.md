@@ -2,7 +2,7 @@
 
 El Ekumetrics Agent, en modo **Sensor**, observa el tráfico hacia componentes SAP **sin acceso administrativo** al sistema. No entra al SID, no usa usuario RFC, no consulta Solution Manager / Cloud ALM y **no descifra** SNC, TLS ni HTTPS.
 
-Esta guía cubre arquitectura, colocación, qué se ve, catálogo de métricas, YAML, POC solo-agente y límites. El resumen operativo de series y campos también está en [USO.md](USO.md). El sensor está sujeto a la prueba de 15 días o a la licencia Gradotech (sección Licencia de [USO.md](USO.md)).
+Esta guía cubre arquitectura, colocación, qué se ve, catálogo de métricas, YAML, POC solo-agente y límites. El resumen operativo de series y campos también está en [USO.md](USO.md).
 
 Nombre comercial honesto: **observabilidad del canal SAP** / *SAP Network Experience*. No es “monitoreo S/4” ni APM ABAP.
 
@@ -234,9 +234,9 @@ No hay descifrado. SNI/cipher ausentes = handshake no visto o TLS 1.3 con extens
 
 Los hosts se siembran con `inventory` y se **aprenden** al ver un puerto SAP. Sin inventario, primero tiene que pasar tráfico a 32NN/33NN/….
 
-### Identidad y licencia (siempre en `:9090`)
+### Identidad (siempre en `:9090`)
 
-`ekms_agent_info`, `ekms_agent_identity`, `ekms_agent_module_enabled{module="sap"}`, `ekms_agent_license_valid`, `ekms_agent_license_until_timestamp_seconds`.
+`ekms_agent_info`, `ekms_agent_identity`, `ekms_agent_module_enabled{module="sap"}`.
 
 ### Sondas activas (`modules.probes`, no se encienden solas)
 
@@ -360,7 +360,7 @@ Zeek (`zeek.enabled`) es un sidecar opcional. No alimenta las series `ekms_sap_*
 
 ---
 
-## 12. POC recomendada (15 días, solo agente)
+## 12. POC recomendada (solo agente)
 
 | Fase | Días | Resultado |
 |------|------|-----------|
@@ -416,7 +416,7 @@ No hace falta usuario SAP, RFC ni software en el SID.
 
 ## 14. Tableros sugeridos (Grafana sobre `:9090`)
 
-1. **Canal vivo** — intentos, establecimientos, `sessions_active`, licencia.
+1. **Canal vivo** — intentos, establecimientos, `sessions_active`.
 2. **Mix de componentes** — sesiones por `protocol`.
 3. **Conversaciones** — journal (`src_ip`, `dst_ip`, puerto). No series Prometheus por IP.
 4. **Calidad** — setup p50/p95, retrans, RST por origen, dup ACK, OOO, zero-window.
