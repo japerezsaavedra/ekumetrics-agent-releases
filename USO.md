@@ -2,7 +2,7 @@
 
 Un proceso en el servidor. Un fichero de configuración. Usted decide qué se recolecta: cada señal tiene un interruptor. Lo que no active no se inicia.
 
-Esta guía describe **qué obtiene** y **cómo se configura**. Rol del agente (sede, NOC, sensor): [ROL.md](ROL.md). En el servidor instalado: `man ekumetrics-agent`. El canal SAP está en [SAP.md](SAP.md).
+Esta guía describe **qué obtiene** y **cómo se configura**. Rol del agente (Servidor, NOC, Sensor): [ROL.md](ROL.md). En el servidor instalado: `man ekumetrics-agent`. El canal SAP está en [SAP.md](SAP.md).
 
 ## Dónde están los datos
 
@@ -28,7 +28,7 @@ El agente recolecta aunque no haya plataforma detrás. Con destino, empuja las s
 | Aplicaciones (Prometheus) | Lo que cada app publica en `/metrics` | `metrics.scrape` |
 | Aplicaciones (OTLP) | Métricas que la app envía al agente | `metrics.otlp` |
 | Equipos de red | Uptime, ifAdmin/ifOper, speed, octetos, paquetes, errores y descartes; CPU/memoria del equipo con `host-mib` | `snmp.devices` |
-| Syslog de sede | Eventos UDP/TCP que los equipos envían al agente | `ingest.syslog` |
+| Syslog del sitio | Eventos UDP/TCP que los equipos envían al agente | `ingest.syslog` |
 | Flujos | NetFlow v5 (metadatos; sin payload): IPs, puertos, proto, bytes, paquetes, duración | `ingest.netflow` |
 | Traps SNMP | `coldStart` (info), `linkDown` (warning); apagado de fábrica | `ingest.traps` |
 | Inventario sugerido | Semillas + ARP/LLDP/CDP/ENTITY; ID `site/<site>/ip/<ip>`; no escribe CMDB | `discovery.passive` |
@@ -60,10 +60,10 @@ El fichero tiene tres zonas. No declare el mismo equipo en dos sitios.
 | Zona | Claves | Pregunta |
 |------|--------|----------|
 | Infra | `agent`, `export`, `receive` | ¿Quién soy y a dónde envío? |
-| Este host y sede | `modules` | ¿Qué recojo en esta máquina y qué escucho? |
+| Este host y el sitio | `modules` | ¿Qué recojo en esta máquina y qué escucho? |
 | Equipos y apps | `snmp`, `databases`, `queues`, `icewarp` | ¿Qué hay alrededor? |
 
-Los equipos SNMP se declaran en `snmp.devices`. El canal SAP (`mode: sensor`) está en [SAP.md](SAP.md), no en el YAML de sede.
+Los equipos SNMP se declaran en `snmp.devices`. El canal SAP (`mode: sensor`) está en [SAP.md](SAP.md), no en el YAML de un agente Servidor.
 
 ### Identidad
 
@@ -80,7 +80,7 @@ agent:
 | Campo | Uso |
 |-------|-----|
 | `environment` | Entorno (production, qa, …). Sale en `ekms_agent_info` y en los datos exportados |
-| `site` / `tenantId` / `agentId` | Sede, tenant y agente hacia Ekumetrics Platform |
+| `site` / `tenantId` / `agentId` | Sitio, tenant y agente hacia Ekumetrics Platform |
 | `mode` | `site` (Servidor), `central` (NOC), `sensor` (SPAN) o `endpoint`. Ver [ROL.md](ROL.md) |
 | `metricsAddr` | Identidad, `/healthz`, `/inventory`, `/flows` y SAP |
 
@@ -263,7 +263,7 @@ Cuenta de **solo lectura**. No se leen filas ni mensajes. Si el `endpoint` no ll
 databases:
   enabled: true
   targets:
-    - name: pg-sede
+    - name: pg-sitio
       type: postgresql
       endpoint: "127.0.0.1"
       username: ekms_ro
@@ -280,7 +280,7 @@ Solo IceWarp Server. SNMP en **1161** (no 161) y probes de puertos de correo. No
 icewarp:
   enabled: true
   targets:
-    - name: mail-sede
+    - name: mail-sitio
       endpoint: "192.168.1.20"
       snmp:
         enabled: true
@@ -289,7 +289,7 @@ icewarp:
       probe: true
 ```
 
-### Syslog de sede
+### Syslog del sitio
 
 Los equipos envían syslog al agente (no lee `/var/log/syslog` remoto).
 
