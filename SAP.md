@@ -16,7 +16,7 @@ Por eso una sonda en la red del cliente ve el **borde remoto** (experiencia de r
 |----------|------------------------------|
 | Monitorear conectividad de usuarios hacia SAP | Sí, si el SPAN ve ese camino |
 | Medir latencia TCP, retransmisiones, RST, sesiones | Sí |
-| Comparar calidad entre sedes (un sensor por sede) | Sí |
+| Comparar calidad entre sitios (un sensor por sitio) | Sí |
 | Detectar caída o degradación del endpoint SAP | Sí (TCP/TLS del borde) |
 | Identificar equipos/IP que usan SAP | Sí (journal; no como label Prometheus) |
 | Identificar usuario corporativo | Solo correlacionando DHCP, AD, VPN o CMDB fuera del agente |
@@ -45,7 +45,7 @@ Un **solo binario** (`ekumetrics-agent`), un YAML (`/etc/ekumetrics-agent/agent.
 | NOC | `central` | APIs de gestores (reservado) |
 | Endpoint | `endpoint` | PC o portátil |
 
-El canal SAP **no** va en el YAML de un agente de sede. Se instala un sensor aparte, junto al SPAN/TAP.
+El canal SAP **no** va en el YAML de un agente Servidor. Se instala un sensor aparte, junto al SPAN/TAP.
 
 ### Lectura local (sin plataforma)
 
